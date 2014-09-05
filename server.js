@@ -20,7 +20,7 @@ function onServe(req, response) {
 	}
 	// response.writeHead(404, { 'Content-Length': 0 });
 	// response.end();
-	response.writeHead(200, { 'Content-Length': data.byteLength });
+	response.writeHead(200, { 'Content-Length': data.byteLength, 'Content-Type': 'text/html' });
 	response.end(data);
 }
 

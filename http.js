@@ -16,13 +16,6 @@ var STATUS_CODES = {
 	501: 'Not Implemented'
 };
 
-var ESSENTIAL_YOUTUBE_HEADERS =
-	'Access-Control-Allow-Origin: http://www.youtube.com\r\n' +
-	'Access-Control-Allow-Credentials: true\r\n' +
-	'Timing-Allow-Origin: http://www.youtube.com\r\n' +
-	'X-Content-Type-Options: nosniff\r\n' +
-	'Server: gvs 1.0\r\n\r\n';
-
 function ab2str(buf) {
 	return String.fromCharCode.apply(null, new Uint8Array(buf));
 }
@@ -42,7 +35,6 @@ function warn(state, socket, code) {
  * Users can register their callbacks on these events:
  *
  *   Server.onRequest
- *   Server.onProxyRequest
  *
  * A callback funcion looks like this:
  *
@@ -64,7 +56,6 @@ function Server(opt_requestListener) {
 	this.acceptListener_ = undefined;
 
 	this.onRequest = new Event();
-	this.onProxyRequest = new Event();
 
 	if (opt_requestListener)
 		this.onRequest.addListener(opt_requestListener);
@@ -179,38 +170,6 @@ Connection.prototype.close = function() {
 };
 
 /**
- * Maintains the state of the connection, e.g. a connection in proxying state
- * should have different logic in receiving client requests.
- *
- * When a connection is going to be proxyed, it unregisters its current regular
- * listener from onReceive, and registers it with the new one, which will
- * process the requests in onProxyRequest event.
- *
- * original flow, the initial state:
- *
- *   request ---------> onRequest
- *           |
- *           \-- x ---> onProxyRequest
- *
- * after pipe() be invoked:
- *
- *   request --- x ---> onRequest
- *           |
- *           \--------> onProxyRequest
- *
- * The state of a connection won't be changed back, since that indicates
- * there is an error and the connection will simply be closed.
- */
-Connection.prototype.transitStates = function(receiveListener) {
-	if (!this.pipe_)
-		return;
-
-	tcp.onReceive.removeListener(this.receiveListener_);
-	this.receiveListener_ = receiveListener.bind(this);
-	tcp.onReceive.addListener(this.receiveListener_);
-};
-
-/**
  * Send the data out to the connection, where data is of type of ArrayBuffer.
  */
 Connection.prototype.send = function(data) {
@@ -274,21 +233,8 @@ Pipe.prototype.establish = function(host, port, data) {
 			t.close();
 			return;
 		}
-		t.owner_.transitStates(dataFromClientOnPipingState);
 		t.send(data);
 	});
-
-	// this will be bound to connection.
-	function dataFromClientOnPipingState(my) {
-		if (my.socketId != this.socketId_)
-			return;
-
-		var req = new IngressMessage(this, my.data),
-			res = new EgressMessage(req);
-
-		this.owner_.onProxyRequest.dispatch(req, res);
-		this.pipe_.send(my.data);
-	}
 
 	function dataFromPeer(my) {
 		if (my.socketId != this.socketId_)
@@ -342,20 +288,8 @@ ReplicablePipe.prototype.establish = function(host, port, data) {
 			t.close();
 			return;
 		}
-		t.owner_.transitStates(dataFromClientOnPipingState);
 		t.send(data);
 	});
-
-	// this will be bound to connection.
-	function dataFromClientOnPipingState(my) {
-		if (my.socketId != this.socketId_)
-			return;
-
-		var req = new IngressMessage(this, my.data),
-			res = new EgressMessage(req);
-
-		this.owner_.onProxyRequest.dispatch(req, res);
-	}
 
 	function dataFromPeer(my) {
 		if (my.socketId != this.socketId_)
@@ -517,7 +451,7 @@ EgressMessage.prototype.writeHead = function(code, headers) {
 			out += '\r\n' + field + ': ' + headers[field];
 		});
 	}
-	out += '\r\n' + ESSENTIAL_YOUTUBE_HEADERS;
+	out += '\r\n\r\n';
 
 	this.req_.client.send(str2ab(out));
 	this.headed_ = true;
@@ -548,7 +482,6 @@ EgressMessage.prototype.end = function(opt_data) {
  *
  *   var server = http.server();
  *   server.onRequest.addListener(function() { ... });
- *   server.onProxyRequest.addListener(function() { ... });
  */
 return {
 	server: function(requestListener) {
