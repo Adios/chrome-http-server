@@ -1,0 +1,17 @@
+{
+	"manifest_version": 2,
+	"name": "chrome-http-server-example",
+	"version": "0.1",
+
+	"description": "Runs a proxy server.",
+	"author": "adiosf6f@gmail.com",
+
+	"app": { "background": { "scripts": ["main.js"] } },
+
+	"sockets": {
+		"tcp": { "connect": "" },
+		"tcpServer": { "listen": "" }
+	},
+
+	"permissions": ["<all_urls>"]
+}

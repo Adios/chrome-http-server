@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../event.js"></script>
+<script>
+
+console.assert(eventEmitter);
+
+
+console.log('testing: eventEmitter()');
+console.assert(typeof eventEmitter().addListener == 'function');
+
+
+console.log('testing: eventEmitter(Class)');
+
+function Server() {}
+Server.prototype = { get: function() {} };
+
+function listener() {};
+
+var s = eventEmitter(Server);
+console.assert(s === s.addListener('message', listener));
+console.assert(s.emit('message'));
+console.assert(s === s.removeListener('message', listener));
+console.assert(!s.emit('message'));
+
+
+console.log('testing: new eventEmitter.Event');
+
+var	e1 = new eventEmitter.Event(),
+	e2 = new eventEmitter.Event(),
+	e3 = new eventEmitter.Event('optional name');
+
+console.assert(e1.loop === e2.loop);
+console.assert(e1.loop === e3.loop);
+
+e1.addListener(listener);
+e2.addListener(listener);
+e3.addListener(listener);
+e2.addListener(listener);
+e2.addListener(listener);
+
+console.assert(e1.dispatch());
+console.assert(e2.dispatch());
+console.assert(e2.loop.events_['_MaayaErikaYukachiEvent_1'].length == 3);
+console.assert(e3.dispatch());
+
+e2.removeListener(listener);
+e2.removeListener(listener);
+e2.removeListener(listener);
+console.assert(e3.dispatch());
+console.assert(!e2.dispatch());
+console.assert(e2.loop === e3.loop);
+
+console.assert(e2.loop.events_['_MaayaErikaYukachiEvent_1'] === undefined);
+e2.addListener(listener);
+console.assert(typeof e2.loop.events_['_MaayaErikaYukachiEvent_1'] == 'function');
+console.assert(e2.dispatch());
+
+</script>
+</head>
+<body>
+</body>
+</html>
